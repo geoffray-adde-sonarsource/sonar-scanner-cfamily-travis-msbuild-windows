@@ -8,37 +8,33 @@ addons:
     token:
       secure: "fGpoRLKINvIAfQjoQRFtzjMh8tMXfabbHvdGmL9WSlGupzFrLg1cr7uYAAXVYe2PKZ8X6XM8e0TCRnYc1tFMtfDZ1kQeCkWqjlw1VjPJymgEcywUXOlzV4zFU9Lr73gFbLPuow3riEYC2zQg26bPbVVZI7tDzQHI6K5hV4YyXr1ZO8p3bDancDOMD0N05XJgMUkTBjfiIv0v8PUYw9LihFSZDnuc22oOpAZbIGk5zM1IaP9Bs0nllsmA9JGVzOb/xjDv36jkYiMSB4he1zhrXQ0MLKnqsch9H2NVUszhHs/1Fs5go7AbK+o4Za4SHGDFwY+j/LWEMkCPCpy0Vhv7N3zMjdblFqDnR/qDitRhTLl/Jm1nWvjyVKh/hZmuSWYZoCT3rRR/ydJ1//tIvFl/0kalif8tYDrqiWS2pXCfUSVW6ExvrmkmcG7zJknAJognojyXCPx0jqwaMkVV+/tYhCgvnRE3y7GKImQccCNkBw27oc7kMybLaeAXFztQkFaw1xEfbFVsVj6zuD1dXllVLY1n70nmIuNmTUUgdhNcMChi8f8ENhI8FTRKC0Ee+WbgbXER/7V+v76LV659ypYWFrbD0xisVBHdkzUkkC+jNoH7acMpzI05G9DIVXWhbyZ7+lnMc8CaoOt7jkxbAVpFCJsR0hDFmFflO8aVWT0F1rc="
 
-
 script:
-# Install java
+  # windows requires a few extra steps
+
+    # Install java
   - export JAVA_HOME=${JAVA_HOME:-/c/jdk}
   - export PATH=${JAVA_HOME}/bin:${PATH}
   - choco install jdk8 -params 'installdir=c:\\jdk' -y
-#Install C++ VsTools
-  - choco version all
-#  - choco install visualcpp-build-tools -params 'installdir=c:\\MsBuildTools' -y
-# Locate MSBuild
+    # Locate MSBuild.exe and vcvars32.bat to configure the environment
   - find /c/Program\ Files\ \(x86\)/ -iname 'msbuild.exe' | grep -i Bin/Msbuild.exe
   - export MSBUILD_PATH=`find /c/Program\ Files\ \(x86\)/ -iname 'msbuild.exe' | grep -i Bin/Msbuild.exe`
   - export VSDEVCMD_PATH=`find /c/Program\ Files\ \(x86\)/ -iname 'vcvars32.bat' | grep -i Build/vcvars32.bat`
   - export MSBUILD_WPATH=`cygpath.exe -w "${MSBUILD_PATH}"`
   - export VSDEVCMD_WPATH=`cygpath.exe -w "${VSDEVCMD_PATH}"`
-# Download build-wrapper
+    # build a batch script to run msbuild with the right environment
+  - echo "call \"${VSDEVCMD_WPATH}\"" >> BuildWrapper.bat
+  - echo "build-wrapper-win-x86\build-wrapper-win-x86-64.exe --out-dir bw-output \"${MSBUILD_WPATH}\" sonar_scanner_example.sln /t:rebuild" >> BuildWrapper.bat
+  - cat BuildWrapper.bat
+  # Download build-wrapper
   - curl "https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip" --output build-wrapper-win-x86.zip
   - unzip build-wrapper-win-x86.zip
   # Wraps the compilation with the Build Wrapper to generate configuration (used
   # later by the SonarQube Scanner) into the "bw-output" folder
-  - export BW_CMD="call \"${VSDEVCMD_WPATH}\" & build-wrapper-win-x86/build-wrapper-win-x86-64.exe --out-dir bw-output \"${MSBUILD_WPATH}\" sonar_scanner_example.sln -t:rebuild"
-  - echo ${BW_CMD}
-  - echo "call \"${VSDEVCMD_WPATH}\"" >> BuildWrapper.bat
-  - echo "build-wrapper-win-x86\build-wrapper-win-x86-64.exe --out-dir bw-output \"${MSBUILD_WPATH}\" sonar_scanner_example.sln /t:rebuild" >> BuildWrapper.bat
-  - echo dump
-  - cat BuildWrapper.bat
   - cmd.exe /C BuildWrapper.bat
   # - build-wrapper-win-x86/build-wrapper-win-x86-64.exe --out-dir bw-output "${MSBUILD_PATH}" sonar_scanner_example.sln -t:rebuild
   # And finally run the SonarQube analysis - read the "sonar-project.properties"
   # file to see the specific configuration
-  - ${TRAVIS_HOME}/.sonarscanner/sonar-scanner/bin/sonar-scanner.bat
+  - ${SONAR_SCANNER_HOME}/bin/sonar-scanner.bat
 
 cache:
   directories:
